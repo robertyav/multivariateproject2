@@ -13,14 +13,16 @@ Quarto enables you to weave together content and executable code into a finished
 When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
 
 ```{r}
-1 + 1
+library(terra)
 ```
 
 You can add options to executable code like this
 
 ```{r}
 #| echo: false
-2 * 2
+nc_data <- rast("data/SWOT_L2_LR_SSH_Basic_475_026_20230330T191003_20230330T200109_PGC0_02.nc")
+print(nc_data)
+plot(nc_data[[1]])
 ```
 
 The `echo: false` option disables the printing of code (only output is displayed).
