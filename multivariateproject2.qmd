@@ -1,9 +1,9 @@
 ---
 title: "multivariateproject2Robert"
-format: html
+format: pdf
 editor: visual
 ---
-
+# Imports
 ```{python}
 from pathlib import Path
 import xarray as xr
@@ -29,6 +29,11 @@ from sklearn.metrics import (
 
 ```
 
+# Data
+
+We observe sea surface temperature $W(s_i)$ in Europe at each observed longitude-latitude coordinate pair (x,y) represented by location s_i, i=1,2,...n. We assume the changing ocean temperatures can be represented approximately by a Gaussian Process, assuming constant mean $\mu(s)=\mu$ and a Matern kernel $$k(x_i,x_j)=\frac{1}{\Gamma(\nu)2^{\nu-1}}(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))^\nu K_\nu(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))$$ We note that 
+
+# Methods
 ```{python}
 data_dir = Path(r"C:\Users\young\OneDrive\Desktop\School\math257\multivariateproject2\data")
 nc_files = sorted(data_dir.glob("*.nc"))
@@ -45,7 +50,7 @@ print(ds)
 print(ds.data_vars)
 print(ds.coords)
 ```
-
+## Extracting Europe
 ```{python}
 sst = ds["sea_surface_temperature"].isel(time=0)
 
@@ -101,7 +106,6 @@ X = np.column_stack([
     lat_grid[valid],
     lon_grid[valid]
 ])
-
 y = sst_values[valid]
 
 print("Number of valid observations:", len(y))
@@ -140,9 +144,9 @@ X_all_scaled = scaler.transform(X)
 
 ```
 
-## Model 1: RBF kernel
+## Model 1: Radial Basis Function (RBF) kernel
 
-$$ k(x,x')=\sigma_f^2 exp(-\frac{||x-x'||^2}{2l^2})$$
+$$ k(x_i,x_j)=\sigma_f^2 exp(-\frac{||x_i-x_j||^2}{2l^2})$$
 ```{python}
 kernel_rbf = (
     ConstantKernel(1.0, (0.01, 100))
@@ -165,6 +169,18 @@ print(gp_rbf.kernel_)
 ```
 ## Model 2: Matern Kernel
 $$k(x_i,x_j)=\frac{1}{\Gamma(\nu)2^{\nu-1}}(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))^\nu K_\nu(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))$$
+The class of Matern kernels is a generalization of the RBF.
+
+$\nu$ controls the smoothness of the resulting function
+
+$d(x_i,x_j)$ is the Euclidean distance,
+
+$K_\nu()$ is a modified Bessel function
+
+$\Gamma()$ is the gamma function
+
+Choosing l=1, $\nu=1.5$
+
 ```{python}
 kernel_matern = (
     ConstantKernel(1.0, (0.01, 100))
