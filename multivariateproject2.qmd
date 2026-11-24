@@ -31,7 +31,10 @@ from sklearn.metrics import (
 
 # Data
 
-We observe sea surface temperature $W(s_i)$ in Europe at each observed longitude-latitude coordinate pair (x,y) represented by location s_i, i=1,2,...n. We assume the changing ocean temperatures can be represented approximately by a Gaussian Process, assuming constant mean $\mu(s)=\mu$ and a Matern kernel $$k(x_i,x_j)=\frac{1}{\Gamma(\nu)2^{\nu-1}}(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))^\nu K_\nu(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))$$ We note that 
+We observe sea surface temperature $W(s_i)$ in Europe at each observed longitude-latitude coordinate pair (x,y) represented by location s_i, i=1,2,...n. We assume the changing ocean temperatures can be represented approximately by a Gaussian Process, assuming constant mean $\mu(s)=\mu$ and a covariance Matern kernel $$k(x_i,x_j)=\frac{1}{\Gamma(\nu)2^{\nu-1}}(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))^\nu K_\nu(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))$$ We choose the Matern kernel as our covariance function due to its historical use estimating weather patterns in @donnelly2024forecasting. We note that in our dataset, there is disproportionate missingness in the Mediterranean compared to England, and disproportionate missingness in the coastal areas compared to purely ocean readings.
+```{python}
+# insert code for missing rate here
+```
 
 # Methods
 ```{python}
@@ -225,3 +228,5 @@ results = pd.DataFrame({
 
 print(results)
 ```
+
+Code was produced in @python3. File system navigation in @vanrossum2009python. Vector and data frame manipulation done with @harris2020array, @hoyer2017xarray, and @inproceedings{mckinney2010data. Plotting done with @hunter2007matplotlib. Train test split, scaling, model fitting, and model evaluation done in @pedregosa2011scikit.
