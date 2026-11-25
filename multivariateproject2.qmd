@@ -2,6 +2,8 @@
 title: "multivariateproject2Robert"
 format: pdf
 editor: visual
+jupyter: python3
+bibliography: references.bib
 ---
 # Imports
 ```{python}
@@ -10,7 +12,7 @@ import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-
+from pyproj import Transformer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.gaussian_process import GaussianProcessRegressor
@@ -116,7 +118,28 @@ print("Number of valid observations:", len(y))
 ```
 
 ```{python}
-rng = np.random.default_rng(42)
+from pyproj import Transformer
+
+transformer = Transformer.from_crs(
+    "EPSG:4326",
+    "EPSG:3035",
+    always_xy=True
+)
+
+x_meters, y_meters = transformer.transform(
+    X[:, 1],  # Longitude
+    X[:, 0]   # Latitude
+)
+
+# Convert meters to kilometers
+X_projected = np.column_stack([
+    x_meters / 1000,
+    y_meters / 1000
+])
+```
+
+```{python}
+rng = np.random.default_rng(1)
 
 n_samples = min(1000, len(y))
 
@@ -134,17 +157,8 @@ X_train, X_test, y_train, y_test = train_test_split(
     X_sample,
     y_sample,
     test_size=0.2,
-    random_state=42
+    random_state=1
 )
-
-# Standardize geographic coordinates
-scaler = StandardScaler()
-
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
-
-X_all_scaled = scaler.transform(X)
-
 ```
 
 ## Model 1: Radial Basis Function (RBF) kernel
@@ -164,7 +178,7 @@ gp_rbf = GaussianProcessRegressor(
     random_state=42
 )
 
-gp_rbf.fit(X_train_scaled, y_train)
+gp_rbf.fit(X_train, y_train)
 
 print("Optimized RBF kernel:")
 print(gp_rbf.kernel_)
@@ -182,7 +196,7 @@ $K_\nu()$ is a modified Bessel function
 
 $\Gamma()$ is the gamma function
 
-Choosing l=1, $\nu=1.5$
+Initially choosing l=1, $\nu=1.5$ we use maximum log-likelihood to estimate the parameters in the kernel. The method 
 
 ```{python}
 kernel_matern = (
@@ -198,7 +212,7 @@ gp_matern = GaussianProcessRegressor(
     random_state=42
 )
 
-gp_matern.fit(X_train_scaled, y_train)
+gp_matern.fit(X_train, y_train)
 
 print("Optimized Matern kernel:")
 print(gp_matern.kernel_)
@@ -207,8 +221,8 @@ print(gp_matern.kernel_)
 
 ```{python}
 # Predictions on testing observations
-y_pred_rbf = gp_rbf.predict(X_test_scaled)
-y_pred_matern = gp_matern.predict(X_test_scaled)
+y_pred_rbf = gp_rbf.predict(X_test)
+y_pred_matern = gp_matern.predict(X_test)
 
 results = pd.DataFrame({
     "Model": ["RBF", "Matern"],
@@ -229,4 +243,6 @@ results = pd.DataFrame({
 print(results)
 ```
 
-Code was produced in @python3. File system navigation in @vanrossum2009python. Vector and data frame manipulation done with @harris2020array, @hoyer2017xarray, and @inproceedings{mckinney2010data. Plotting done with @hunter2007matplotlib. Train test split, scaling, model fitting, and model evaluation done in @pedregosa2011scikit.
+
+
+Code was produced in @python3. File system navigation in @vanrossum2009python. Vector and data frame manipulation done with @harris2020array, @hoyer2017xarray, and @mckinney2010data. Plotting done with @hunter2007matplotlib. Data projection and transformation done with @pyproj. Train test split, model fitting, and model evaluation done in @pedregosa2011scikit.
