@@ -2,6 +2,8 @@
 .Rhistory
 .RData
 .Ruserdata
+.vscode
+multivariateproject2.Rproj
 
 /.quarto/
 **/*.quarto_ipynb

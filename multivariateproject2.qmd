@@ -33,12 +33,30 @@ from sklearn.metrics import (
 
 # Data
 
-We observe sea surface temperature $W(s_i)$ in Europe at each observed longitude-latitude coordinate pair (x,y) represented by location s_i, i=1,2,...n. We assume the changing ocean temperatures can be represented approximately by a Gaussian Process, assuming constant mean $\mu(s)=\mu$ and a covariance Matern kernel $$k(x_i,x_j)=\frac{1}{\Gamma(\nu)2^{\nu-1}}(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))^\nu K_\nu(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))$$ We choose the Matern kernel as our covariance function due to its historical use estimating weather patterns in @donnelly2024forecasting. We note that in our dataset, there is disproportionate missingness in the Mediterranean compared to England, and disproportionate missingness in the coastal areas compared to purely ocean readings.
+We observe sea surface temperature $W(s_i)$ in Europe at each observed longitude-latitude coordinate pair projected into the pan-European EPSG coordinate system in kilometers (km) (x,y) represented by location $s_i, i=1,2,...n.$ We assume the changing ocean temperatures can be represented approximately by a Gaussian Process, assuming constant mean $\mu(s)=\mu$ and a covariance kernel $K(x_i,x_j)$. We choose the Matern kernel as a potential covariance function due to its historical use estimating weather patterns in @donnelly2024forecasting. We note that in our dataset, there is disproportionate missingness in the Mediterranean compared to England, and disproportionate missingness in the coastal areas compared to purely ocean readings.
 ```{python}
 # insert code for missing rate here
 ```
 
 # Methods
+For the covariance function, we choose to compare two variants of the Matern kernel, one with $\nu=1.5$ and one with $\nu=2.5$. The general Matern kernel is as follows: $$ k_{M}(x_i,x_j)=\frac{1}{\Gamma(\nu)2^{\nu-1}}(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))^\nu K_\nu(\frac{\sqrt{2\nu}}{l}d(x_i,x_j)))$$
+
+where $\nu$ controls the smoothness of the resulting function,
+
+$d(x_i,x_j)$ is the Euclidean distance,
+
+$K_\nu()$ is a modified Bessel function, and
+
+$\Gamma()$ is the gamma function.
+
+We generate the full kernel using 
+$$K(x_i,x_j)=k_c*k_M(x_i,x_j)+k_W(x_i,x_j)$$
+where $k_c=\sigma^2_f$ is the constant kernel
+
+and $k_W=\sigma^2\mathbf{1}\{s_1=s_2\}$ is the kernel representing Gaussian white noise.
+
+There are also two hyperparameters to estimate, the length scale $l$ and the signal variance $\sigma_f^2$. The length scale controls how quickly the covariance decays with distance, and the signal variance controls the overall variability of the process. We will use a simple train-test split to evaluate the performance of each model, using root mean squared error (RMSE), mean absolute error (MAE), and R-squared ($R^2$) as metrics. We will use maximum log-likelihood to estimate the parameters in the kernel. The method is implemented in @pedregosa2011scikit. 
+
 ```{python}
 data_dir = Path(r"C:\Users\young\OneDrive\Desktop\School\math257\multivariateproject2\data")
 nc_files = sorted(data_dir.glob("*.nc"))
@@ -118,8 +136,6 @@ print("Number of valid observations:", len(y))
 ```
 
 ```{python}
-from pyproj import Transformer
-
 transformer = Transformer.from_crs(
     "EPSG:4326",
     "EPSG:3035",
@@ -161,42 +177,35 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 ```
 
-## Model 1: Radial Basis Function (RBF) kernel
+## Model 1: Matern Kernel 5/2
 
-$$ k(x_i,x_j)=\sigma_f^2 exp(-\frac{||x_i-x_j||^2}{2l^2})$$
+$$$$
 ```{python}
-kernel_rbf = (
+kernel_matern_52 = (
     ConstantKernel(1.0, (0.01, 100))
-    * RBF(length_scale=1.0)
+    * Matern(length_scale=1.0, nu=2.5)
     + WhiteKernel(noise_level=0.1)
 )
 
-gp_rbf = GaussianProcessRegressor(
-    kernel=kernel_rbf,
+gp_matern_52 = GaussianProcessRegressor(
+    kernel=kernel_matern_52,
     normalize_y=True,
     n_restarts_optimizer=2,
     random_state=42
 )
 
-gp_rbf.fit(X_train, y_train)
+gp_matern_52.fit(X_train, y_train)
 
-print("Optimized RBF kernel:")
-print(gp_rbf.kernel_)
+print("Optimized Matern 5/2 kernel:")
+print(gp_matern_52.kernel_)
 
 ```
-## Model 2: Matern Kernel
-$$k(x_i,x_j)=\frac{1}{\Gamma(\nu)2^{\nu-1}}(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))^\nu K_\nu(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))$$
-The class of Matern kernels is a generalization of the RBF.
 
-$\nu$ controls the smoothness of the resulting function
+## Model 2: Matern Kernel 3/2
+$$k_{3/2}(x_i,x_j)=\frac{1}{\Gamma(\nu)2^{\nu-1}}(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))^\nu K_\nu(\frac{\sqrt{2\nu}}{l}d(x_i,x_j))$$
 
-$d(x_i,x_j)$ is the Euclidean distance,
 
-$K_\nu()$ is a modified Bessel function
 
-$\Gamma()$ is the gamma function
-
-Initially choosing l=1, $\nu=1.5$ we use maximum log-likelihood to estimate the parameters in the kernel. The method 
 
 ```{python}
 kernel_matern = (
@@ -221,22 +230,22 @@ print(gp_matern.kernel_)
 
 ```{python}
 # Predictions on testing observations
-y_pred_rbf = gp_rbf.predict(X_test)
-y_pred_matern = gp_matern.predict(X_test)
+y_pred_matern_52 = gp_matern_52.predict(X_test)
+y_pred_matern_32 = gp_matern.predict(X_test)
 
 results = pd.DataFrame({
-    "Model": ["RBF", "Matern"],
+    "Model": ["Matern 5/2", "Matern 3/2"],
     "RMSE": [
-        np.sqrt(mean_squared_error(y_test, y_pred_rbf)),
-        np.sqrt(mean_squared_error(y_test, y_pred_matern))
+        np.sqrt(mean_squared_error(y_test, y_pred_matern_52)),
+        np.sqrt(mean_squared_error(y_test, y_pred_matern_32))
     ],
     "MAE": [
-        mean_absolute_error(y_test, y_pred_rbf),
-        mean_absolute_error(y_test, y_pred_matern)
+        mean_absolute_error(y_test, y_pred_matern_52),
+        mean_absolute_error(y_test, y_pred_matern_32)
     ],
     "R2": [
-        r2_score(y_test, y_pred_rbf),
-        r2_score(y_test, y_pred_matern)
+        r2_score(y_test, y_pred_matern_52),
+        r2_score(y_test, y_pred_matern_32)
     ]
 })
 
@@ -245,4 +254,9 @@ print(results)
 
 
 
-Code was produced in @python3. File system navigation in @vanrossum2009python. Vector and data frame manipulation done with @harris2020array, @hoyer2017xarray, and @mckinney2010data. Plotting done with @hunter2007matplotlib. Data projection and transformation done with @pyproj. Train test split, model fitting, and model evaluation done in @pedregosa2011scikit.
+Code was produced in @python3. File system navigation in pathlib [@vanrossum2009python]. Vector and data frame manipulation done with numpy [@harris2020array], xarray [@hoyer2017xarray], and pandas [@mckinney2010data]. Plotting done with matplotlib [@hunter2007matplotlib]. Data projection and transformation done with pyproj [@pyproj_software]. Train test split, model fitting, and model evaluation done in scikitlearn [@pedregosa2011scikit].
+
+# Results
+
+# References
+
